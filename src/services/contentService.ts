@@ -1,17 +1,25 @@
 import type { Platform, ScrapedData, GeneratedPost } from '../types';
 import { PLATFORMS } from '../lib/platforms';
+import { geminiModel, isGeminiConfigured } from '../lib/gemini';
 
 /**
  * Generates marketing content for a specific platform based on scraped data.
- * In production, this calls an AI API (Claude/Gemini). For MVP, uses templates.
+ * Uses Gemini AI if configured, falls back to templates.
  */
-export function generatePostForPlatform(
+export async function generatePostForPlatform(
   projectId: string,
   platform: Platform,
-  data: ScrapedData
-): GeneratedPost {
+  data: ScrapedData,
+  tone: 'professional' | 'casual' | 'viral' = 'casual'
+): Promise<GeneratedPost> {
   const config = PLATFORMS.find((p) => p.id === platform)!;
-  const content = generateContent(platform, data, config.maxLength);
+
+  let content: string;
+  if (isGeminiConfigured()) {
+    content = await generateWithGemini(platform, data, config.maxLength, tone);
+  } else {
+    content = generateWithTemplate(platform, data, config.maxLength);
+  }
 
   return {
     id: crypto.randomUUID(),
@@ -23,16 +31,70 @@ export function generatePostForPlatform(
   };
 }
 
-export function generateAllPosts(
+export async function generateAllPosts(
   projectId: string,
-  data: ScrapedData
-): GeneratedPost[] {
-  return PLATFORMS.map((p) =>
-    generatePostForPlatform(projectId, p.id, data)
+  data: ScrapedData,
+  tone: 'professional' | 'casual' | 'viral' = 'casual'
+): Promise<GeneratedPost[]> {
+  // Generate all posts in parallel
+  const promises = PLATFORMS.map((p) =>
+    generatePostForPlatform(projectId, p.id, data, tone)
   );
+  return Promise.all(promises);
 }
 
-function generateContent(
+// ============= GEMINI AI GENERATION =============
+
+async function generateWithGemini(
+  platform: Platform,
+  data: ScrapedData,
+  maxLength: number,
+  tone: string
+): Promise<string> {
+  const config = PLATFORMS.find((p) => p.id === platform)!;
+  const { title, description, features, keywords } = data;
+
+  const prompt = `You are an expert growth marketer. Generate a ${tone} marketing post for ${config.name}.
+
+PRODUCT INFO:
+- Name: ${title}
+- Description: ${description}
+- Key features: ${features.slice(0, 5).join(', ')}
+- Keywords: ${keywords.slice(0, 8).join(', ')}
+
+PLATFORM RULES for ${config.name}:
+- Max length: ${maxLength} characters
+- Style: ${config.description}
+- Media type: ${config.mediaType}
+${platform === 'twitter' ? '- Use short punchy sentences. Add relevant emojis. Include hashtags.' : ''}
+${platform === 'linkedin' ? '- Write a storytelling hook. Use line breaks for readability. End with a question for engagement.' : ''}
+${platform === 'reddit' ? '- Be authentic and helpful, NOT salesy. Write like a real user sharing a discovery. Use markdown formatting.' : ''}
+${platform === 'facebook' ? '- Be engaging and conversational. Use emojis sparingly. Include a CTA.' : ''}
+${platform === 'instagram' ? '- Write a compelling caption. Use emojis. Add 15-20 relevant hashtags at the end.' : ''}
+${platform === 'tiktok' ? '- Write a video script/caption. Start with a hook. Keep it Gen-Z friendly.' : ''}
+${platform === 'youtube' ? '- Write a video description with timestamps. Include keywords for SEO. Add a CTA to subscribe.' : ''}
+
+IMPORTANT:
+- Stay under ${maxLength} characters
+- Make it feel authentic, not AI-generated
+- Focus on the VALUE the product brings, not just features
+- The post should be VIRAL-worthy — something people want to share
+
+Return ONLY the post content, nothing else.`;
+
+  try {
+    const result = await geminiModel.generateContent(prompt);
+    const text = result.response.text().trim();
+    return truncate(text, maxLength);
+  } catch (error) {
+    console.warn('Gemini generation failed, falling back to template:', error);
+    return generateWithTemplate(platform, data, maxLength);
+  }
+}
+
+// ============= TEMPLATE FALLBACK =============
+
+function generateWithTemplate(
   platform: Platform,
   data: ScrapedData,
   maxLength: number
@@ -174,25 +236,4 @@ function generateContent(
 function truncate(text: string, max: number): string {
   if (text.length <= max) return text;
   return text.slice(0, max - 3) + '...';
-}
-
-/**
- * In production, this would call Claude/Gemini API for AI-generated content.
- * Placeholder for the AI integration.
- */
-export async function generateWithAI(
-  platform: Platform,
-  data: ScrapedData,
-  _tone: 'professional' | 'casual' | 'viral' = 'casual'
-): Promise<string> {
-  // TODO: Call Claude API or Gemini API
-  // const response = await fetch('/api/generate', {
-  //   method: 'POST',
-  //   body: JSON.stringify({ platform, data, tone }),
-  // });
-  // return response.json();
-
-  // For now, use template-based generation
-  const config = PLATFORMS.find((p) => p.id === platform)!;
-  return generateContent(platform, data, config.maxLength);
 }
