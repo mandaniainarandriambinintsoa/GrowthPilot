@@ -1,9 +1,12 @@
+import { RefreshCw } from 'lucide-react';
+import { Button } from '../ui/Button';
 import { PostCard } from './PostCard';
 import { VideoGenerator } from '../video/VideoGenerator';
 import { useProject } from '../../contexts/ProjectContext';
+import { isAIConfigured } from '../../lib/gemini';
 
 export function ChannelGrid() {
-  const { posts, currentProject } = useProject();
+  const { posts, currentProject, regenerateAll, isGenerating } = useProject();
 
   if (!currentProject || posts.length === 0) return null;
 
@@ -18,6 +21,11 @@ export function ChannelGrid() {
             {posts.length} posts ready for {currentProject.name}
           </p>
         </div>
+        {isAIConfigured() && (
+          <Button variant="secondary" size="sm" onClick={regenerateAll} loading={isGenerating}>
+            <RefreshCw className="w-4 h-4" /> Regenerate All with AI
+          </Button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">

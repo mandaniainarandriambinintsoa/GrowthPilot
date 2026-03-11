@@ -131,20 +131,20 @@ export function PostCard({ post }: PostCardProps) {
     <Card className="group">
       {/* Platform header */}
       <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 min-w-0">
           <div
-            className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm"
+            className="w-11 h-11 min-w-11 rounded-xl flex items-center justify-center text-white font-bold text-base"
             style={{ backgroundColor: platform.color || '#6366f1' }}
           >
             {platform.icon}
           </div>
-          <div>
+          <div className="min-w-0">
             <h4 className="text-sm font-semibold text-white">{platform.name}</h4>
-            <p className="text-xs text-slate-500">{platform.description.slice(0, 50)}</p>
+            <p className="text-xs text-slate-500 truncate">{platform.description}</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="flex items-center gap-0.5 flex-shrink-0">
           <Button
             variant="ghost"
             size="sm"

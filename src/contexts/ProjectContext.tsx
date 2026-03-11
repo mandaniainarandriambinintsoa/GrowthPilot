@@ -20,6 +20,7 @@ interface ProjectContextType {
   addProject: (url: string, name?: string) => Promise<void>;
   selectProject: (id: string) => void;
   regeneratePost: (postId: string) => Promise<void>;
+  regenerateAll: () => Promise<void>;
   updatePost: (postId: string, content: string) => void;
   schedulePost: (postId: string, scheduledAt: string) => Promise<void>;
   generateVariant: (postId: string) => Promise<void>;
@@ -143,6 +144,19 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     [currentProject, posts, tone, language]
   );
 
+  const regenerateAll = useCallback(async () => {
+    if (!currentProject?.scraped_data) return;
+    setIsGenerating(true);
+    try {
+      const newPosts = await generateAllPosts(currentProject.id, currentProject.scraped_data, tone, language);
+      setPosts(newPosts);
+      // Persist to DB (replace old posts)
+      db.savePosts(newPosts).catch(console.warn);
+    } finally {
+      setIsGenerating(false);
+    }
+  }, [currentProject, tone, language]);
+
   const updatePost = useCallback((postId: string, content: string) => {
     setPosts((prev) =>
       prev.map((p) => (p.id === postId ? { ...p, content } : p))
@@ -208,6 +222,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         addProject,
         selectProject,
         regeneratePost,
+        regenerateAll,
         updatePost,
         schedulePost,
         generateVariant,

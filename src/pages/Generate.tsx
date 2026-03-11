@@ -4,6 +4,7 @@ import { ScrapedPreview } from '../components/scraper/ScrapedPreview';
 import { ChannelGrid } from '../components/channels/ChannelGrid';
 import { useProject } from '../contexts/ProjectContext';
 import { isGeminiConfigured } from '../lib/gemini';
+import { isGroqConfigured } from '../lib/groq';
 
 const TONES = [
   { value: 'casual', label: 'Casual', emoji: '😎' },
@@ -33,11 +34,15 @@ export function Generate() {
         </p>
         {isGeminiConfigured() ? (
           <span className="inline-flex items-center gap-1.5 mt-2 px-3 py-1 bg-success/10 border border-success/20 rounded-full text-xs text-success">
-            <Sparkles className="w-3 h-3" /> Gemini AI active
+            <Sparkles className="w-3 h-3" /> Gemini AI active{isGroqConfigured() ? ' + Groq fallback' : ''}
+          </span>
+        ) : isGroqConfigured() ? (
+          <span className="inline-flex items-center gap-1.5 mt-2 px-3 py-1 bg-success/10 border border-success/20 rounded-full text-xs text-success">
+            <Sparkles className="w-3 h-3" /> Groq AI active (Llama 3.3 70B)
           </span>
         ) : (
           <span className="inline-flex items-center gap-1.5 mt-2 px-3 py-1 bg-warning/10 border border-warning/20 rounded-full text-xs text-warning">
-            Template mode — add Gemini API key in Settings for AI generation
+            Template mode — add API key in Settings for AI generation
           </span>
         )}
       </div>

@@ -70,14 +70,36 @@ function parseHTML(html: string, url: string): ScrapedData {
     ? keywordsRaw.split(',').map((k) => k.trim()).filter(Boolean)
     : [];
 
-  // Extract headings as features
+  // Extract headings + their nearby text as features
   const features: string[] = [];
-  doc.querySelectorAll('h2, h3').forEach((el) => {
+  doc.querySelectorAll('h1, h2, h3, h4').forEach((el) => {
     const text = el.textContent?.trim();
-    if (text && text.length > 5 && text.length < 200) {
-      features.push(text);
+    if (text && text.length > 3 && text.length < 200) {
+      // Also grab the next sibling paragraph for context
+      const sibling = el.nextElementSibling;
+      const siblingText = sibling?.tagName === 'P' ? sibling.textContent?.trim() : '';
+      const combined = siblingText ? `${text}: ${siblingText}` : text;
+      if (!features.includes(combined)) features.push(combined);
     }
   });
+
+  // Extract ALL visible text paragraphs for richer context
+  const bodyTexts: string[] = [];
+  doc.querySelectorAll('p, li, span, strong').forEach((el) => {
+    const text = el.textContent?.trim();
+    if (text && text.length > 20 && text.length < 500) {
+      if (!bodyTexts.some((t) => t.includes(text) || text.includes(t))) {
+        bodyTexts.push(text);
+      }
+    }
+  });
+
+  // Use body texts as extra features if headings are sparse
+  if (features.length < 5) {
+    bodyTexts.slice(0, 10 - features.length).forEach((t) => {
+      if (!features.includes(t)) features.push(t);
+    });
+  }
 
   // Extract content blocks
   const content_blocks: ScrapedData['content_blocks'] = [];
@@ -93,9 +115,9 @@ function parseHTML(html: string, url: string): ScrapedData {
     });
   }
 
-  // Feature blocks
-  features.slice(0, 6).forEach((f) => {
-    content_blocks.push({ type: 'feature', title: f, text: '' });
+  // Feature blocks from headings + text
+  features.slice(0, 8).forEach((f) => {
+    content_blocks.push({ type: 'feature', title: f.split(':')[0], text: f.includes(':') ? f.split(':').slice(1).join(':').trim() : '' });
   });
 
   // Extract images

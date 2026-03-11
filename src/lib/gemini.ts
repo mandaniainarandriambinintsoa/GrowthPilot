@@ -16,3 +16,8 @@ export const geminiImageModel = genAI.getGenerativeModel({
 export function isGeminiConfigured(): boolean {
   return apiKey.length > 0;
 }
+
+// Check if any AI provider is configured (Gemini or Groq)
+export function isAIConfigured(): boolean {
+  return apiKey.length > 0 || (import.meta.env.VITE_GROQ_API_KEY || '').length > 0;
+}
