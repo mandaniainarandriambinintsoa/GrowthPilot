@@ -44,6 +44,33 @@ export async function updatePostStatus(id: string, status: string): Promise<void
   await sql`UPDATE posts SET status = ${status} WHERE id = ${id}`;
 }
 
+export async function schedulePost(id: string, scheduledAt: string): Promise<void> {
+  await sql`UPDATE posts SET status = 'scheduled', scheduled_at = ${scheduledAt} WHERE id = ${id}`;
+}
+
 export async function deletePost(id: string): Promise<void> {
   await sql`DELETE FROM posts WHERE id = ${id}`;
+}
+
+// ============= ANALYTICS =============
+
+export async function getPostStats(userId: string): Promise<{platform: string, status: string, count: number}[]> {
+  const rows = await sql`
+    SELECT p.platform, p.status, COUNT(*)::int as count
+    FROM posts p
+    JOIN projects pr ON pr.id = p.project_id
+    WHERE pr.user_id = ${userId}
+    GROUP BY p.platform, p.status
+  `;
+  return rows as unknown as {platform: string, status: string, count: number}[];
+}
+
+export async function getAllPostsByUser(userId: string): Promise<(GeneratedPost & { project_name: string })[]> {
+  const rows = await sql`
+    SELECT p.*, pr.name AS project_name
+    FROM posts p
+    JOIN projects pr ON p.project_id = pr.id
+    WHERE pr.user_id = ${userId}
+    ORDER BY p.created_at DESC`;
+  return rows as unknown as (GeneratedPost & { project_name: string })[];
 }

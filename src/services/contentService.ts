@@ -10,13 +10,14 @@ export async function generatePostForPlatform(
   projectId: string,
   platform: Platform,
   data: ScrapedData,
-  tone: 'professional' | 'casual' | 'viral' = 'casual'
+  tone: 'professional' | 'casual' | 'viral' = 'casual',
+  language: string = 'english'
 ): Promise<GeneratedPost> {
   const config = PLATFORMS.find((p) => p.id === platform)!;
 
   let content: string;
   if (isGeminiConfigured()) {
-    content = await generateWithGemini(platform, data, config.maxLength, tone);
+    content = await generateWithGemini(platform, data, config.maxLength, tone, language);
   } else {
     content = generateWithTemplate(platform, data, config.maxLength);
   }
@@ -34,11 +35,12 @@ export async function generatePostForPlatform(
 export async function generateAllPosts(
   projectId: string,
   data: ScrapedData,
-  tone: 'professional' | 'casual' | 'viral' = 'casual'
+  tone: 'professional' | 'casual' | 'viral' = 'casual',
+  language: string = 'english'
 ): Promise<GeneratedPost[]> {
   // Generate all posts in parallel
   const promises = PLATFORMS.map((p) =>
-    generatePostForPlatform(projectId, p.id, data, tone)
+    generatePostForPlatform(projectId, p.id, data, tone, language)
   );
   return Promise.all(promises);
 }
@@ -49,12 +51,14 @@ async function generateWithGemini(
   platform: Platform,
   data: ScrapedData,
   maxLength: number,
-  tone: string
+  tone: string,
+  language: string = 'english'
 ): Promise<string> {
   const config = PLATFORMS.find((p) => p.id === platform)!;
   const { title, description, features, keywords } = data;
 
   const prompt = `You are an expert growth marketer. Generate a ${tone} marketing post for ${config.name}.
+Write the post in ${language}.
 
 PRODUCT INFO:
 - Name: ${title}

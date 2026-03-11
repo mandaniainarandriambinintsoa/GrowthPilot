@@ -7,11 +7,16 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "render:youtube": "npx remotion render src/remotion/Root.tsx PromoVideo out/promo-youtube.mp4",
+    "render:tiktok": "npx remotion render src/remotion/Root.tsx PromoVideoVertical out/promo-tiktok.mp4",
+    "render:studio": "npx remotion studio src/remotion/Root.tsx"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "@neondatabase/serverless": "^1.0.2",
+    "@remotion/cli": "^4.0.434",
+    "@remotion/player": "^4.0.434",
     "@supabase/supabase-js": "^2.99.0",
     "@tailwindcss/vite": "^4.2.1",
     "cheerio": "^1.2.0",
@@ -19,6 +24,7 @@
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-router-dom": "^7.13.1",
+    "remotion": "^4.0.434",
     "tailwindcss": "^4.2.1"
   },
   "devDependencies": {

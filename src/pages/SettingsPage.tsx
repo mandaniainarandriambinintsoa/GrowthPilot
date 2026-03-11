@@ -1,7 +1,8 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
-import { Key, Bot, Plug, CheckCircle, AlertCircle, Database } from 'lucide-react';
+import { Key, Bot, Plug, CheckCircle, AlertCircle, Database, ExternalLink } from 'lucide-react';
 import { isGeminiConfigured } from '../lib/gemini';
 
 export function SettingsPage() {
@@ -119,27 +120,21 @@ export function SettingsPage() {
 
       {/* Integrations */}
       <Card>
-        <div className="flex items-center gap-3 mb-4">
-          <Plug className="w-5 h-5 text-accent" />
-          <h2 className="text-base font-semibold text-white">Social Media Integrations</h2>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <Plug className="w-5 h-5 text-accent" />
+            <h2 className="text-base font-semibold text-white">Social Media Integrations</h2>
+          </div>
+          <Link to="/social">
+            <Button variant="secondary" size="sm">
+              <ExternalLink className="w-3.5 h-3.5" /> Manage Connections
+            </Button>
+          </Link>
         </div>
-        <p className="text-sm text-slate-400 mb-4">
-          Connect your accounts for direct publishing (coming soon).
+        <p className="text-sm text-slate-400">
+          Connect your social accounts to publish posts directly from GrowthPilot.
+          Twitter, LinkedIn, Facebook, and Reddit support direct text publishing.
         </p>
-        <div className="space-y-2">
-          {[
-            'Twitter/X', 'LinkedIn', 'Reddit', 'Facebook',
-            'Instagram', 'TikTok', 'YouTube',
-          ].map((name) => (
-            <div
-              key={name}
-              className="flex items-center justify-between p-3 bg-surface rounded-xl"
-            >
-              <span className="text-sm text-white">{name}</span>
-              <span className="text-xs text-slate-500">Coming soon</span>
-            </div>
-          ))}
-        </div>
       </Card>
     </div>
   );

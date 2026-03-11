@@ -11,8 +11,18 @@ const TONES = [
   { value: 'viral', label: 'Viral', emoji: '🔥' },
 ] as const;
 
+const LANGUAGES = [
+  { value: 'english', label: 'English', flag: '🇬🇧' },
+  { value: 'french', label: 'French', flag: '🇫🇷' },
+  { value: 'spanish', label: 'Spanish', flag: '🇪🇸' },
+  { value: 'portuguese', label: 'Portuguese', flag: '🇧🇷' },
+  { value: 'german', label: 'German', flag: '🇩🇪' },
+  { value: 'arabic', label: 'Arabic', flag: '🇸🇦' },
+  { value: 'japanese', label: 'Japanese', flag: '🇯🇵' },
+] as const;
+
 export function Generate() {
-  const { error, currentProject, isGenerating, tone, setTone } = useProject();
+  const { error, currentProject, isGenerating, tone, setTone, language, setLanguage } = useProject();
 
   return (
     <div className="space-y-6">
@@ -46,6 +56,24 @@ export function Generate() {
             }`}
           >
             {emoji} {label}
+          </button>
+        ))}
+      </div>
+
+      {/* Language selector */}
+      <div className="flex items-center justify-center gap-2 flex-wrap">
+        <span className="text-xs text-slate-500 mr-2">Language:</span>
+        {LANGUAGES.map(({ value, label, flag }) => (
+          <button
+            key={value}
+            onClick={() => setLanguage(value)}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+              language === value
+                ? 'bg-primary/20 text-primary-light border border-primary/30'
+                : 'bg-surface-light text-slate-400 border border-white/5 hover:border-white/10'
+            }`}
+          >
+            {flag} {label}
           </button>
         ))}
       </div>

@@ -1,10 +1,13 @@
 import { PostCard } from './PostCard';
+import { VideoGenerator } from '../video/VideoGenerator';
 import { useProject } from '../../contexts/ProjectContext';
 
 export function ChannelGrid() {
   const { posts, currentProject } = useProject();
 
   if (!currentProject || posts.length === 0) return null;
+
+  const videoPosts = posts.filter((p) => p.platform === 'tiktok' || p.platform === 'youtube');
 
   return (
     <div className="mt-8">
@@ -22,6 +25,22 @@ export function ChannelGrid() {
           <PostCard key={post.id} post={post} />
         ))}
       </div>
+
+      {/* Video generation section */}
+      {videoPosts.length > 0 && currentProject.scraped_data && (
+        <div className="mt-8">
+          <h2 className="text-xl font-bold text-white mb-4">Video Generation</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {videoPosts.map((post) => (
+              <VideoGenerator
+                key={`video-${post.id}`}
+                data={currentProject.scraped_data!}
+                platform={post.platform as 'tiktok' | 'youtube'}
+              />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

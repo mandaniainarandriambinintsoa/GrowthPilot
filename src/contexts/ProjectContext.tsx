@@ -1,7 +1,8 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
 import type { Project, ScrapedData, GeneratedPost } from '../types';
 import { scrapeWithProxy } from '../services/scraperService';
 import { generateAllPosts, generatePostForPlatform } from '../services/contentService';
+import { useAuth } from './AuthContext';
 import * as db from '../services/dbService';
 
 interface ProjectContextType {
@@ -13,15 +14,21 @@ interface ProjectContextType {
   error: string | null;
   tone: 'professional' | 'casual' | 'viral';
   setTone: (tone: 'professional' | 'casual' | 'viral') => void;
+  language: string;
+  setLanguage: (language: string) => void;
+  variants: Record<string, string[]>;
   addProject: (url: string, name?: string) => Promise<void>;
   selectProject: (id: string) => void;
   regeneratePost: (postId: string) => Promise<void>;
   updatePost: (postId: string, content: string) => void;
+  schedulePost: (postId: string, scheduledAt: string) => Promise<void>;
+  generateVariant: (postId: string) => Promise<void>;
 }
 
 const ProjectContext = createContext<ProjectContextType | null>(null);
 
 export function ProjectProvider({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
   const [currentProject, setCurrentProject] = useState<Project | null>(null);
   const [posts, setPosts] = useState<GeneratedPost[]>([]);
@@ -29,8 +36,19 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [tone, setTone] = useState<'professional' | 'casual' | 'viral'>('casual');
+  const [language, setLanguage] = useState<string>('english');
+  const [variants, setVariants] = useState<Record<string, string[]>>({});
+
+  // Load projects from DB on mount
+  useEffect(() => {
+    if (!user) return;
+    db.getProjects(user.id)
+      .then(setProjects)
+      .catch(console.warn);
+  }, [user]);
 
   const addProject = useCallback(async (url: string, name?: string) => {
+    if (!user) return;
     setIsLoading(true);
     setError(null);
 
@@ -40,7 +58,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
 
       const project: Project = {
         id: crypto.randomUUID(),
-        user_id: 'local',
+        user_id: user.id,
         name: name || scrapedData.title || new URL(url).hostname,
         url,
         description: scrapedData.description,
@@ -55,7 +73,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
 
       // Step 2: Generate posts with AI (async, shows generating state)
       setIsGenerating(true);
-      const generatedPosts = await generateAllPosts(project.id, scrapedData, tone);
+      const generatedPosts = await generateAllPosts(project.id, scrapedData, tone, language);
       setPosts(generatedPosts);
 
       // Step 3: Persist to Neon (fire and forget)
@@ -67,23 +85,35 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       setIsLoading(false);
       setIsGenerating(false);
     }
-  }, [tone]);
+  }, [user, tone, language]);
 
   const selectProject = useCallback(
     async (id: string) => {
       const project = projects.find((p) => p.id === id) || null;
       setCurrentProject(project);
-      if (project?.scraped_data) {
-        setIsGenerating(true);
+      if (project) {
+        // Try loading existing posts from DB first
         try {
-          const generatedPosts = await generateAllPosts(project.id, project.scraped_data, tone);
-          setPosts(generatedPosts);
-        } finally {
-          setIsGenerating(false);
+          const existingPosts = await db.getPostsByProject(project.id);
+          if (existingPosts.length > 0) {
+            setPosts(existingPosts);
+            return;
+          }
+        } catch { /* fallback to regenerate */ }
+
+        // Regenerate if no saved posts
+        if (project.scraped_data) {
+          setIsGenerating(true);
+          try {
+            const generatedPosts = await generateAllPosts(project.id, project.scraped_data, tone, language);
+            setPosts(generatedPosts);
+          } finally {
+            setIsGenerating(false);
+          }
         }
       }
     },
-    [projects, tone]
+    [projects, tone, language]
   );
 
   const regeneratePost = useCallback(
@@ -98,7 +128,8 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
           currentProject.id,
           post.platform,
           currentProject.scraped_data,
-          tone
+          tone,
+          language
         );
         setPosts((prev) =>
           prev.map((p) => (p.id === postId ? { ...newPost, id: postId } : p))
@@ -109,7 +140,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         setIsGenerating(false);
       }
     },
-    [currentProject, posts, tone]
+    [currentProject, posts, tone, language]
   );
 
   const updatePost = useCallback((postId: string, content: string) => {
@@ -118,6 +149,46 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     );
     // Persist to DB
     db.updatePostContent(postId, content).catch(console.warn);
+  }, []);
+
+  const generateVariant = useCallback(
+    async (postId: string) => {
+      if (!currentProject?.scraped_data) return;
+      const post = posts.find((p) => p.id === postId);
+      if (!post) return;
+
+      setIsGenerating(true);
+      try {
+        const variantPost = await generatePostForPlatform(
+          currentProject.id,
+          post.platform,
+          currentProject.scraped_data,
+          tone,
+          language
+        );
+        setVariants((prev) => ({
+          ...prev,
+          [postId]: [...(prev[postId] || []), variantPost.content],
+        }));
+      } finally {
+        setIsGenerating(false);
+      }
+    },
+    [currentProject, posts, tone, language]
+  );
+
+  const schedulePost = useCallback(async (postId: string, scheduledAt: string) => {
+    setPosts((prev) =>
+      prev.map((p) =>
+        p.id === postId ? { ...p, status: 'scheduled' as const, scheduled_at: scheduledAt } : p
+      )
+    );
+    // Persist to DB
+    try {
+      await db.schedulePost(postId, scheduledAt);
+    } catch (err) {
+      console.warn('Failed to schedule post:', err);
+    }
   }, []);
 
   return (
@@ -131,10 +202,15 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         error,
         tone,
         setTone,
+        language,
+        setLanguage,
+        variants,
         addProject,
         selectProject,
         regeneratePost,
         updatePost,
+        schedulePost,
+        generateVariant,
       }}
     >
       {children}
