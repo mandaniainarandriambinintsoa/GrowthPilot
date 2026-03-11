@@ -23,27 +23,59 @@ export async function scrapeWebsite(url: string): Promise<ScrapedData> {
 /**
  * Demo scraper that extracts data from meta tags and visible content
  * using the browser's fetch + DOMParser (works for CORS-enabled sites).
- * Falls back to basic extraction for CORS-blocked sites.
+ * Tries multiple CORS proxies for reliability.
  */
 export async function scrapeWithProxy(url: string): Promise<ScrapedData> {
-  try {
-    // Try via AllOrigins proxy for CORS
-    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
-    const res = await fetch(proxyUrl);
-    const html = await res.text();
-    return parseHTML(html, url);
-  } catch {
-    // Fallback: return basic data from URL
-    return {
-      title: new URL(url).hostname.replace('www.', ''),
-      description: `Website at ${url}`,
-      keywords: [],
-      features: [],
-      screenshots: [],
-      colors: [],
-      content_blocks: [],
-    };
+  const encodedUrl = encodeURIComponent(url);
+
+  const proxies = [
+    `https://api.allorigins.win/raw?url=${encodedUrl}`,
+    `https://corsproxy.io/?${encodedUrl}`,
+    `https://api.codetabs.com/v1/proxy?quest=${encodedUrl}`,
+  ];
+
+  for (const proxyUrl of proxies) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 8000);
+      const res = await fetch(proxyUrl, { signal: controller.signal });
+      clearTimeout(timeout);
+
+      if (!res.ok) continue;
+
+      const html = await res.text();
+      if (!html || html.length < 100) continue;
+
+      const data = parseHTML(html, url);
+      // If we got meaningful data, return it
+      if (data.title && data.title !== new URL(url).hostname && (data.keywords.length > 0 || data.features.length > 0 || data.description.length > 20)) {
+        return data;
+      }
+      // Got HTML but sparse data — try direct fetch before giving up
+      if (data.title) return data;
+    } catch {
+      // This proxy failed, try next
+      continue;
+    }
   }
+
+  // Last resort: try direct fetch (works for same-origin or CORS-enabled sites)
+  try {
+    const res = await fetch(url);
+    const html = await res.text();
+    if (html && html.length > 100) return parseHTML(html, url);
+  } catch { /* CORS blocked */ }
+
+  // All proxies failed
+  return {
+    title: new URL(url).hostname.replace('www.', ''),
+    description: `Website at ${url}`,
+    keywords: [],
+    features: [],
+    screenshots: [],
+    colors: [],
+    content_blocks: [],
+  };
 }
 
 function parseHTML(html: string, url: string): ScrapedData {
