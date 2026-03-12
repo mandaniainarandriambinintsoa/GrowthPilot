@@ -1,24 +1,27 @@
-import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
-import { Key, Bot, Plug, CheckCircle, AlertCircle, Database, ExternalLink } from 'lucide-react';
-import { isGeminiConfigured } from '../lib/gemini';
+import { Bot, Plug, CheckCircle, Database, ExternalLink, Shield } from 'lucide-react';
 
 export function SettingsPage() {
-  const [geminiKey, setGeminiKey] = useState(import.meta.env.VITE_GEMINI_API_KEY || '');
-  const [saved, setSaved] = useState(false);
-
-  const handleSaveGemini = () => {
-    // In a real app, this would be stored securely in the DB
-    // For MVP, we show a notice about .env.local
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
-  };
-
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <h1 className="text-2xl font-bold text-white">Settings</h1>
+
+      {/* Security Status */}
+      <Card>
+        <div className="flex items-center gap-3 mb-4">
+          <Shield className="w-5 h-5 text-emerald-400" />
+          <h2 className="text-base font-semibold text-white">Security</h2>
+          <span className="flex items-center gap-1 text-xs text-emerald-400">
+            <CheckCircle className="w-3 h-3" /> API Keys Secured
+          </span>
+        </div>
+        <p className="text-sm text-slate-400">
+          All API keys (Neon DB, Gemini AI, Groq AI) are securely stored server-side
+          and never exposed to the browser. All operations go through Edge Functions.
+        </p>
+      </Card>
 
       {/* AI Provider */}
       <Card>
@@ -27,14 +30,15 @@ export function SettingsPage() {
           <h2 className="text-base font-semibold text-white">AI Provider</h2>
         </div>
         <p className="text-sm text-slate-400 mb-4">
-          Gemini Flash 2.0 — fast, cheap, great for content generation.
+          Content generation uses Gemini Flash 2.0 with Groq Llama 3.3 70B fallback.
+          API keys are configured via Vercel environment variables (server-side only).
         </p>
         <div className="grid grid-cols-2 gap-3">
           {[
-            { name: 'Gemini Flash 2.0', active: true, desc: '15 RPM free tier' },
-            { name: 'Claude (Anthropic)', active: false, desc: 'Coming soon' },
-            { name: 'GPT-4o (OpenAI)', active: false, desc: 'Coming soon' },
-            { name: 'Templates (offline)', active: !isGeminiConfigured(), desc: 'No API key needed' },
+            { name: 'Gemini Flash 2.0', active: true, desc: 'Primary AI' },
+            { name: 'Groq Llama 3.3 70B', active: true, desc: 'Fallback AI' },
+            { name: 'Templates (offline)', active: true, desc: 'Last resort' },
+            { name: 'Edge Functions', active: true, desc: 'Server-side only' },
           ].map(({ name, active, desc }) => (
             <div
               key={name}
@@ -46,59 +50,11 @@ export function SettingsPage() {
             >
               {name}
               <span className={`block text-xs mt-1 ${active ? 'text-primary-light' : 'text-slate-500'}`}>
-                {active ? 'Active' : desc}
+                {desc}
               </span>
             </div>
           ))}
         </div>
-      </Card>
-
-      {/* Gemini API Key */}
-      <Card>
-        <div className="flex items-center gap-3 mb-4">
-          <Key className="w-5 h-5 text-warning" />
-          <h2 className="text-base font-semibold text-white">Gemini API Key</h2>
-          {isGeminiConfigured() ? (
-            <span className="flex items-center gap-1 text-xs text-success">
-              <CheckCircle className="w-3 h-3" /> Connected
-            </span>
-          ) : (
-            <span className="flex items-center gap-1 text-xs text-warning">
-              <AlertCircle className="w-3 h-3" /> Not configured
-            </span>
-          )}
-        </div>
-        <p className="text-sm text-slate-400 mb-4">
-          Get your free API key from{' '}
-          <a
-            href="https://aistudio.google.com/apikey"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-primary-light hover:underline"
-          >
-            Google AI Studio
-          </a>
-        </p>
-        <div className="space-y-3">
-          <div>
-            <label className="text-xs text-slate-400 mb-1 block">API Key</label>
-            <input
-              type="password"
-              value={geminiKey}
-              onChange={(e) => setGeminiKey(e.target.value)}
-              placeholder="AIza..."
-              className="w-full px-3 py-2 bg-surface border border-white/10 rounded-lg text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-primary/50"
-            />
-          </div>
-          <div className="bg-surface rounded-lg p-3 text-xs text-slate-400">
-            <strong className="text-slate-300">For development:</strong> Add your key to{' '}
-            <code className="bg-surface-lighter px-1.5 py-0.5 rounded text-primary-light">.env.local</code> as{' '}
-            <code className="bg-surface-lighter px-1.5 py-0.5 rounded text-primary-light">VITE_GEMINI_API_KEY=your_key</code>
-          </div>
-        </div>
-        <Button className="mt-4" size="sm" onClick={handleSaveGemini}>
-          {saved ? '✓ Saved' : 'Save Key'}
-        </Button>
       </Card>
 
       {/* Database */}
@@ -111,10 +67,10 @@ export function SettingsPage() {
           </span>
         </div>
         <p className="text-sm text-slate-400 mb-2">
-          Serverless PostgreSQL — projects and posts are persisted automatically.
+          Serverless PostgreSQL via Neon Edge Functions. Connection string is server-side only.
         </p>
         <div className="bg-surface rounded-lg p-3 text-xs text-slate-500">
-          Project: growthpilot | Region: us-west-2 | Tables: users, projects, posts, api_keys, sessions
+          Project: growthpilot | Region: us-west-2 | Tables: users, projects, posts, sessions, social_accounts, landing_pages
         </div>
       </Card>
 
@@ -133,7 +89,7 @@ export function SettingsPage() {
         </div>
         <p className="text-sm text-slate-400">
           Connect your social accounts to publish posts directly from GrowthPilot.
-          Twitter, LinkedIn, Facebook, and Reddit support direct text publishing.
+          Social API calls are routed through Edge Functions (no CORS issues).
         </p>
       </Card>
     </div>

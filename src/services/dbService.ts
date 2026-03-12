@@ -1,76 +1,93 @@
-import { sql } from '../lib/neon';
 import type { Project, GeneratedPost } from '../types';
 
 // ============= PROJECTS =============
 
 export async function saveProject(project: Project): Promise<void> {
-  await sql`INSERT INTO projects (id, user_id, name, url, description, logo_url, scraped_data)
-    VALUES (${project.id}, ${project.user_id}, ${project.name}, ${project.url}, ${project.description || null}, ${project.logo_url || null}, ${JSON.stringify(project.scraped_data) || null})`;
+  const res = await fetch('/api/projects', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(project),
+  });
+  if (!res.ok) {
+    const data = await res.json();
+    throw new Error(data.error || 'Failed to save project');
+  }
 }
 
 export async function getProjects(userId: string): Promise<Project[]> {
-  const rows = await sql`SELECT * FROM projects WHERE user_id = ${userId} ORDER BY created_at DESC`;
-  return rows as unknown as Project[];
+  const res = await fetch(`/api/projects?userId=${encodeURIComponent(userId)}`);
+  const data = await res.json();
+  return data.projects || [];
 }
 
 export async function getProject(id: string): Promise<Project | null> {
-  const rows = await sql`SELECT * FROM projects WHERE id = ${id} LIMIT 1`;
-  return (rows[0] as unknown as Project) || null;
+  const res = await fetch(`/api/projects?userId=_&id=${encodeURIComponent(id)}`);
+  const data = await res.json();
+  return data.project || null;
 }
 
 export async function deleteProject(id: string): Promise<void> {
-  await sql`DELETE FROM projects WHERE id = ${id}`;
+  await fetch(`/api/projects?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
 }
 
 // ============= POSTS =============
 
 export async function savePosts(posts: GeneratedPost[]): Promise<void> {
-  for (const post of posts) {
-    await sql`INSERT INTO posts (id, project_id, platform, content, media_url, video_url, status)
-      VALUES (${post.id}, ${post.project_id}, ${post.platform}, ${post.content}, ${post.media_url || null}, ${post.video_url || null}, ${post.status})`;
+  const res = await fetch('/api/posts', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ posts }),
+  });
+  if (!res.ok) {
+    const data = await res.json();
+    throw new Error(data.error || 'Failed to save posts');
   }
 }
 
 export async function getPostsByProject(projectId: string): Promise<GeneratedPost[]> {
-  const rows = await sql`SELECT * FROM posts WHERE project_id = ${projectId} ORDER BY created_at DESC`;
-  return rows as unknown as GeneratedPost[];
+  const res = await fetch(`/api/posts?projectId=${encodeURIComponent(projectId)}`);
+  const data = await res.json();
+  return data.posts || [];
 }
 
 export async function updatePostContent(id: string, content: string): Promise<void> {
-  await sql`UPDATE posts SET content = ${content} WHERE id = ${id}`;
+  await fetch('/api/posts', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id, content }),
+  });
 }
 
 export async function updatePostStatus(id: string, status: string): Promise<void> {
-  await sql`UPDATE posts SET status = ${status} WHERE id = ${id}`;
+  await fetch('/api/posts', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id, status }),
+  });
 }
 
 export async function schedulePost(id: string, scheduledAt: string): Promise<void> {
-  await sql`UPDATE posts SET status = 'scheduled', scheduled_at = ${scheduledAt} WHERE id = ${id}`;
+  await fetch('/api/posts', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id, scheduledAt }),
+  });
 }
 
 export async function deletePost(id: string): Promise<void> {
-  await sql`DELETE FROM posts WHERE id = ${id}`;
+  await fetch(`/api/posts?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
 }
 
 // ============= ANALYTICS =============
 
 export async function getPostStats(userId: string): Promise<{platform: string, status: string, count: number}[]> {
-  const rows = await sql`
-    SELECT p.platform, p.status, COUNT(*)::int as count
-    FROM posts p
-    JOIN projects pr ON pr.id = p.project_id
-    WHERE pr.user_id = ${userId}
-    GROUP BY p.platform, p.status
-  `;
-  return rows as unknown as {platform: string, status: string, count: number}[];
+  const res = await fetch(`/api/posts?action=stats&userId=${encodeURIComponent(userId)}`);
+  const data = await res.json();
+  return data.stats || [];
 }
 
 export async function getAllPostsByUser(userId: string): Promise<(GeneratedPost & { project_name: string })[]> {
-  const rows = await sql`
-    SELECT p.*, pr.name AS project_name
-    FROM posts p
-    JOIN projects pr ON p.project_id = pr.id
-    WHERE pr.user_id = ${userId}
-    ORDER BY p.created_at DESC`;
-  return rows as unknown as (GeneratedPost & { project_name: string })[];
+  const res = await fetch(`/api/posts?action=all&userId=${encodeURIComponent(userId)}`);
+  const data = await res.json();
+  return data.posts || [];
 }

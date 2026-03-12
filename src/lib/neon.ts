@@ -1,5 +1,6 @@
-import { neon } from '@neondatabase/serverless';
+// Database operations are now handled server-side via Edge Functions (api/*.ts).
+// This file is kept for backward compatibility but the SQL client is no longer
+// initialized on the client — all DB queries go through /api/* endpoints.
 
-const connectionString = import.meta.env.VITE_NEON_CONNECTION_STRING || '';
-
-export const sql = neon(connectionString);
+// No API keys are exposed to the browser.
+export const sql = null;

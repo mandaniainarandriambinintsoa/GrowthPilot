@@ -1,12 +1,10 @@
 import type { ScrapedData } from '../types';
 
 /**
- * Scrapes a website URL and extracts structured marketing data.
- * In production, this would call a Supabase Edge Function running Puppeteer/Cheerio.
- * For the MVP, we use a proxy approach via a serverless function.
+ * Scrapes a website URL via the Edge API (server-side, no CORS issues).
+ * Falls back to client-side proxy scraping if API is unavailable.
  */
 export async function scrapeWebsite(url: string): Promise<ScrapedData> {
-  // Call our edge function that handles the actual scraping
   const response = await fetch('/api/scrape', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -14,16 +12,15 @@ export async function scrapeWebsite(url: string): Promise<ScrapedData> {
   });
 
   if (!response.ok) {
-    throw new Error('Failed to scrape website');
+    // Try client-side proxy fallback for dev mode
+    return scrapeWithProxy(url);
   }
 
   return response.json();
 }
 
 /**
- * Demo scraper that extracts data from meta tags and visible content
- * using the browser's fetch + DOMParser (works for CORS-enabled sites).
- * Tries multiple CORS proxies for reliability.
+ * Client-side proxy fallback (for local dev without Vercel functions).
  */
 export async function scrapeWithProxy(url: string): Promise<ScrapedData> {
   const encodedUrl = encodeURIComponent(url);
@@ -47,26 +44,21 @@ export async function scrapeWithProxy(url: string): Promise<ScrapedData> {
       if (!html || html.length < 100) continue;
 
       const data = parseHTML(html, url);
-      // If we got meaningful data, return it
       if (data.title && data.title !== new URL(url).hostname && (data.keywords.length > 0 || data.features.length > 0 || data.description.length > 20)) {
         return data;
       }
-      // Got HTML but sparse data — try direct fetch before giving up
       if (data.title) return data;
     } catch {
-      // This proxy failed, try next
       continue;
     }
   }
 
-  // Last resort: try direct fetch (works for same-origin or CORS-enabled sites)
   try {
     const res = await fetch(url);
     const html = await res.text();
     if (html && html.length > 100) return parseHTML(html, url);
   } catch { /* CORS blocked */ }
 
-  // All proxies failed
   return {
     title: new URL(url).hostname.replace('www.', ''),
     description: `Website at ${url}`,
@@ -92,22 +84,17 @@ function parseHTML(html: string, url: string): ScrapedData {
     doc.querySelector('title')?.textContent ||
     new URL(url).hostname;
 
-  const description =
-    getMeta('og:description') ||
-    getMeta('description') ||
-    '';
+  const description = getMeta('og:description') || getMeta('description') || '';
 
   const keywordsRaw = getMeta('keywords');
   const keywords = keywordsRaw
     ? keywordsRaw.split(',').map((k) => k.trim()).filter(Boolean)
     : [];
 
-  // Extract headings + their nearby text as features
   const features: string[] = [];
   doc.querySelectorAll('h1, h2, h3, h4').forEach((el) => {
     const text = el.textContent?.trim();
     if (text && text.length > 3 && text.length < 200) {
-      // Also grab the next sibling paragraph for context
       const sibling = el.nextElementSibling;
       const siblingText = sibling?.tagName === 'P' ? sibling.textContent?.trim() : '';
       const combined = siblingText ? `${text}: ${siblingText}` : text;
@@ -115,7 +102,6 @@ function parseHTML(html: string, url: string): ScrapedData {
     }
   });
 
-  // Extract ALL visible text paragraphs for richer context
   const bodyTexts: string[] = [];
   doc.querySelectorAll('p, li, span, strong').forEach((el) => {
     const text = el.textContent?.trim();
@@ -126,17 +112,13 @@ function parseHTML(html: string, url: string): ScrapedData {
     }
   });
 
-  // Use body texts as extra features if headings are sparse
   if (features.length < 5) {
     bodyTexts.slice(0, 10 - features.length).forEach((t) => {
       if (!features.includes(t)) features.push(t);
     });
   }
 
-  // Extract content blocks
   const content_blocks: ScrapedData['content_blocks'] = [];
-
-  // Hero section (first h1 + nearby p)
   const h1 = doc.querySelector('h1');
   if (h1) {
     const heroP = h1.parentElement?.querySelector('p');
@@ -147,12 +129,10 @@ function parseHTML(html: string, url: string): ScrapedData {
     });
   }
 
-  // Feature blocks from headings + text
   features.slice(0, 8).forEach((f) => {
     content_blocks.push({ type: 'feature', title: f.split(':')[0], text: f.includes(':') ? f.split(':').slice(1).join(':').trim() : '' });
   });
 
-  // Extract images
   const screenshots: string[] = [];
   const ogImage = getMeta('og:image');
   if (ogImage) screenshots.push(ogImage);
@@ -163,11 +143,10 @@ function parseHTML(html: string, url: string): ScrapedData {
       try {
         const fullUrl = new URL(src, url).href;
         if (!screenshots.includes(fullUrl)) screenshots.push(fullUrl);
-      } catch { /* skip invalid URLs */ }
+      } catch { /* skip */ }
     }
   });
 
-  // Extract logo
   const logo =
     doc.querySelector('link[rel="icon"]')?.getAttribute('href') ||
     doc.querySelector('link[rel="shortcut icon"]')?.getAttribute('href') ||

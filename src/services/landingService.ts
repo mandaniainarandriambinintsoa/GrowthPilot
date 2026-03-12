@@ -1,5 +1,3 @@
-import { sql } from '../lib/neon';
-
 export interface LandingSection {
   id: string;
   type: 'hero' | 'features' | 'testimonial' | 'cta' | 'pricing' | 'faq';
@@ -23,23 +21,27 @@ export interface LandingPage {
 }
 
 export async function saveLandingPage(page: LandingPage): Promise<void> {
-  await sql`
-    INSERT INTO landing_pages (id, project_id, title, slug, sections, published)
-    VALUES (${page.id}, ${page.project_id}, ${page.title}, ${page.slug}, ${JSON.stringify(page.sections)}, ${page.published})
-    ON CONFLICT (id) DO UPDATE SET
-      title = ${page.title}, slug = ${page.slug},
-      sections = ${JSON.stringify(page.sections)}, published = ${page.published},
-      updated_at = NOW()
-  `;
+  const res = await fetch('/api/landing', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(page),
+  });
+  if (!res.ok) {
+    const data = await res.json();
+    throw new Error(data.error || 'Failed to save landing page');
+  }
 }
 
 export async function getLandingPages(projectId: string): Promise<LandingPage[]> {
-  const rows = await sql`SELECT * FROM landing_pages WHERE project_id = ${projectId} ORDER BY created_at DESC`;
-  return rows as unknown as LandingPage[];
+  const res = await fetch(`/api/landing?projectId=${encodeURIComponent(projectId)}`);
+  const data = await res.json();
+  return data.pages || [];
 }
 
 export async function deleteLandingPage(id: string, projectId: string): Promise<void> {
-  await sql`DELETE FROM landing_pages WHERE id = ${id} AND project_id = ${projectId}`;
+  await fetch(`/api/landing?id=${encodeURIComponent(id)}&projectId=${encodeURIComponent(projectId)}`, {
+    method: 'DELETE',
+  });
 }
 
 export function generateLandingHTML(page: LandingPage): string {
