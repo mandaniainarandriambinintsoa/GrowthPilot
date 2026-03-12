@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
 import type { Project, ScrapedData, GeneratedPost } from '../types';
-import { scrapeWithProxy } from '../services/scraperService';
+import { scrapeWebsite } from '../services/scraperService';
 import { generateAllPosts, generatePostForPlatform } from '../services/contentService';
 import { useAuth } from './AuthContext';
 import * as db from '../services/dbService';
@@ -55,7 +55,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
 
     try {
       // Step 1: Scrape the website
-      const scrapedData: ScrapedData = await scrapeWithProxy(url);
+      const scrapedData: ScrapedData = await scrapeWebsite(url);
 
       const project: Project = {
         id: crypto.randomUUID(),
