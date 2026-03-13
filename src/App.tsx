@@ -9,6 +9,7 @@ import AnalyticsPage from './pages/AnalyticsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import LandingBuilder from './pages/LandingBuilder';
 import SocialConnectPage from './pages/SocialConnectPage';
+import CalendarPage from './pages/CalendarPage';
 import { LoginPage } from './pages/auth/LoginPage';
 import { RegisterPage } from './pages/auth/RegisterPage';
 
@@ -62,6 +63,7 @@ function AppRoutes() {
                     <Route path="/" element={<Dashboard />} />
                     <Route path="/generate" element={<Generate />} />
                     <Route path="/history" element={<HistoryPage />} />
+                    <Route path="/calendar" element={<CalendarPage />} />
                     <Route path="/analytics" element={<AnalyticsPage />} />
                     <Route path="/landing" element={<LandingBuilder />} />
                     <Route path="/social" element={<SocialConnectPage />} />

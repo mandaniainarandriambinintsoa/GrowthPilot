@@ -1,12 +1,13 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Rocket, LayoutDashboard, Zap, History, BarChart3, Settings, LogOut, User, Layout, Link2 } from 'lucide-react';
+import { Rocket, LayoutDashboard, Zap, History, CalendarDays, BarChart3, Settings, LogOut, User, Layout, Link2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 const NAV_ITEMS = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/generate', label: 'Generate', icon: Zap },
   { to: '/history', label: 'History', icon: History },
+  { to: '/calendar', label: 'Calendar', icon: CalendarDays },
   { to: '/analytics', label: 'Analytics', icon: BarChart3 },
   { to: '/landing', label: 'Landing', icon: Layout },
   { to: '/social', label: 'Social', icon: Link2 },
