@@ -81,7 +81,10 @@ export default function CalendarPage() {
   const month = currentDate.getMonth();
 
   const loadData = useCallback(async () => {
-    if (!user) return;
+    if (!user) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const [postsData, projectsData] = await Promise.all([
