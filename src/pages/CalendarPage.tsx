@@ -3,9 +3,9 @@ import { CalendarDays, ChevronLeft, ChevronRight, Clock, X, Loader2 } from 'luci
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { useAuth } from '../contexts/AuthContext';
-import { getAllPostsByUser, getProjects, schedulePost } from '../services/dbService';
+import { getAllPostsByUser, schedulePost } from '../services/dbService';
 import { getPlatform } from '../lib/platforms';
-import type { GeneratedPost, Project } from '../types';
+import type { GeneratedPost } from '../types';
 
 type PostWithProject = GeneratedPost & { project_name: string };
 
@@ -69,7 +69,6 @@ function isToday(d: Date): boolean {
 export default function CalendarPage() {
   const { user } = useAuth();
   const [posts, setPosts] = useState<PostWithProject[]>([]);
-  const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [currentDate, setCurrentDate] = useState(() => new Date());
@@ -87,12 +86,8 @@ export default function CalendarPage() {
     }
     setLoading(true);
     try {
-      const [postsData, projectsData] = await Promise.all([
-        getAllPostsByUser(user.id),
-        getProjects(user.id),
-      ]);
+      const postsData = await getAllPostsByUser(user.id);
       setPosts(postsData);
-      setProjects(projectsData);
     } catch (e) {
       console.error('Failed to load calendar data:', e);
     } finally {
